@@ -46,4 +46,4 @@ def process_ai(req: AiRequest):
         })
         return {"output": response.json()['response']}
     except:
-        return {"output": "System Offline. Local AI Engine not responding."}
+        return {"output": "System Offline. Local AI Engine not responding!."}
