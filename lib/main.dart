@@ -32,7 +32,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 4), () {
+    Future.delayed(const Duration(seconds: 3), () {
       Navigator.pushReplacement(
           context, MaterialPageRoute(builder: (context) => const LoginPage()));
     });
@@ -46,17 +46,13 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              "CODEMATE",
-              style: TextStyle(fontSize: 16, color: Colors.blueAccent, letterSpacing: 2),
+              "CODEMATE AI",
+              style: TextStyle(fontSize: 18, color: Colors.blueAccent, letterSpacing: 2),
             ),
             SizedBox(height: 15),
             Text(
-              "Welcome to the platform",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w300,
-              ),
+              "Initializing Neural Engine...",
+              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w300),
             ),
           ],
         ),
@@ -75,11 +71,11 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  String statusMessage = "Please login or sign up to continue.";
+  String statusMessage = "Authenticate to access the core.";
 
   Future<void> handleAuth(String endpoint) async {
     if (emailController.text.isEmpty || passwordController.text.isEmpty) {
-      setState(() => statusMessage = "Please enter both email and password.");
+      setState(() => statusMessage = "Fields cannot be empty.");
       return;
     }
     try {
@@ -94,10 +90,10 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (context) => Dashboard(userEmail: emailController.text)));
       } else {
-        setState(() => statusMessage = "Invalid credentials or user already exists.");
+        setState(() => statusMessage = "Access Denied.");
       }
     } catch (e) {
-      setState(() => statusMessage = "Error connecting to the server.");
+      setState(() => statusMessage = "Server offline.");
     }
   }
 
@@ -147,13 +143,18 @@ class Dashboard extends StatefulWidget {
 
 class _DashboardState extends State<Dashboard> {
   final TextEditingController promptController = TextEditingController();
-  String responseText = "Waiting for your prompt...";
+  String responseText = "System ready.";
+  String imageUrl = "";
   String selectedLanguage = "Python";
-  String selectedMode = "Beginner Engine";
+  String selectedMode = "Beginner Mode";
 
   Future<void> sendPrompt() async {
     if (promptController.text.isEmpty) return;
-    setState(() => responseText = "Loading response from server...");
+    setState(() {
+      responseText = "Processing via AI Model...";
+      imageUrl = "";
+    });
+    
     try {
       final response = await http.post(
         Uri.parse('http://127.0.0.1:8000/run_ai'),
@@ -165,134 +166,114 @@ class _DashboardState extends State<Dashboard> {
           "mode": selectedMode
         }),
       );
-      setState(() => responseText = jsonDecode(response.body)['reply']);
+      final decoded = jsonDecode(response.body);
+      setState(() {
+        responseText = decoded['reply'];
+        imageUrl = decoded['image'] ?? "";
+      });
     } catch (e) {
-      setState(() => responseText = "Error: Could not connect to the backend.");
+      setState(() => responseText = "Connection to AI Engine lost.");
     }
-  }
-
-  void showInfoDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF121216),
-        title: Text(title, style: const TextStyle(color: Colors.blueAccent)),
-        content: Text(message, style: const TextStyle(color: Colors.white70)),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("OK"))],
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Dashboard - ${widget.userEmail}", style: const TextStyle(fontSize: 15)),
+        title: Text("Codemate - ${widget.userEmail}", style: const TextStyle(fontSize: 15)),
         backgroundColor: const Color(0xFF09090C),
         actions: [
-          IconButton(icon: const Icon(Icons.history), onPressed: () => showInfoDialog("History", "Your history is saved in the database.")),
-          IconButton(icon: const Icon(Icons.help_outline), onPressed: () => showInfoDialog("Help", "Select a mode and language, then type your prompt.")),
           IconButton(icon: const Icon(Icons.logout), onPressed: () {
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginPage()));
           }),
         ],
       ),
-      body: Row(
-        children: [
-          Container(
-            width: 75,
-            color: const Color(0xFF09090C),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            Row(
               children: [
-                IconButton(icon: const Icon(Icons.code, color: Colors.blueAccent), onPressed: () {}),
-                const SizedBox(height: 30),
-                IconButton(icon: const Icon(Icons.image, color: Colors.grey), onPressed: () => showInfoDialog("Feature Unavailable", "Image generation coming soon.")),
-                const SizedBox(height: 30),
-                IconButton(icon: const Icon(Icons.mic, color: Colors.grey), onPressed: () => showInfoDialog("Feature Unavailable", "Voice input coming soon.")),
+                DropdownButton<String>(
+                  value: selectedMode,
+                  dropdownColor: const Color(0xFF121216),
+                  items: ['Beginner Mode', 'Pro Debugger', 'Cinematic Mode', 'AI Assistant'].map((String m) {
+                    return DropdownMenuItem<String>(value: m, child: Text(m));
+                  }).toList(),
+                  onChanged: (val) => setState(() => selectedMode = val!),
+                ),
+                const SizedBox(width: 25),
+                DropdownButton<String>(
+                  value: selectedLanguage,
+                  dropdownColor: const Color(0xFF121216),
+                  items: ['Python', 'Java', 'JavaScript', 'C', 'C++', 'HTML'].map((String l) {
+                    return DropdownMenuItem<String>(value: l, child: Text(l));
+                  }).toList(),
+                  onChanged: (val) => setState(() => selectedLanguage = val!),
+                ),
               ],
             ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  Row(
+            const SizedBox(height: 20),
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      DropdownButton<String>(
-                        value: selectedMode,
-                        dropdownColor: const Color(0xFF121216),
-                        items: ['Beginner Engine', 'Pro Debugger', 'Cinematic Generator'].map((String modeOption) {
-                          return DropdownMenuItem<String>(value: modeOption, child: Text(modeOption));
-                        }).toList(),
-                        onChanged: (updatedMode) => setState(() => selectedMode = updatedMode!),
-                      ),
-                      const SizedBox(width: 25),
-                      DropdownButton<String>(
-                        value: selectedLanguage,
-                        dropdownColor: const Color(0xFF121216),
-                        items: ['Python', 'C', 'C++', 'Java', 'JavaScript'].map((String langOption) {
-                          return DropdownMenuItem<String>(value: langOption, child: Text(langOption));
-                        }).toList(),
-                        onChanged: (updatedLang) => setState(() => selectedLanguage = updatedLang!),
-                      ),
-                      const Spacer(),
-                      ElevatedButton(
-                        onPressed: () {
-                          promptController.text = "Write a calculator program for me.";
-                        },
-                        child: const Text("Example Prompt"),
-                      )
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(15),
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: SingleChildScrollView(
-                        child: Text(
-                          responseText,
-                          style: const TextStyle(fontFamily: 'Courier', color: Colors.greenAccent, fontSize: 14, height: 1.4),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: promptController,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            hintText: "Enter your prompt here...",
+                      if (imageUrl.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 15.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(imageUrl),
                           ),
                         ),
+                      Text(
+                        responseText,
+                        style: const TextStyle(fontFamily: 'Courier', color: Colors.greenAccent, fontSize: 14, height: 1.4),
                       ),
-                      const SizedBox(width: 15),
-                      SizedBox(
-                        height: 55,
-                        width: 60,
-                        child: ElevatedButton(
-                          onPressed: sendPrompt,
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
-                          child: const Icon(Icons.send, color: Colors.white),
-                        ),
-                      )
                     ],
-                  )
-                ],
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 20),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: promptController,
+                    maxLines: null,
+                    minLines: 3,
+                    keyboardType: TextInputType.multiline,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: "Type your code or prompt here. Press Enter for a new line...",
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 15),
+                SizedBox(
+                  height: 60,
+                  width: 60,
+                  child: ElevatedButton(
+                    onPressed: sendPrompt,
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+                    child: const Icon(Icons.send, color: Colors.white),
+                  ),
+                )
+              ],
+            )
+          ],
+        ),
       ),
     );
   }
